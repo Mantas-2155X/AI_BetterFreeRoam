@@ -5,8 +5,12 @@ using BepInEx.Configuration;
 using HarmonyLib;
 
 using Manager;
-
+using AIProject;
 using UnityEngine;
+
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace AI_BetterFreeRoam
 {
@@ -15,19 +19,28 @@ namespace AI_BetterFreeRoam
     {
         public const string VERSION = "1.0.0";
 
+        private static Light sun;
         private static Terrain terrain;
-        private static GameObject mapSimulation;
+        private static GameObject titleCam;
+        
+        private static GameObject[] gameObjects;
+        private static List<GameObject> greens;
+        
         private static bool inHousingIsland;
         
         private static ConfigEntry<bool> optimizeBaseMap { get; set; }
         private static ConfigEntry<bool> disableFoliage { get; set; }
-        private static ConfigEntry<bool> disableMapSimulation { get; set; }
+        private static ConfigEntry<bool> disableGreens { get; set; }
+        private static ConfigEntry<bool> disableSunShadows { get; set; }
+        private static ConfigEntry<bool> disableTitleScene { get; set; }
         
         private void Awake()
         {
-            optimizeBaseMap = Config.Bind("Performance Improvements", "Optimize Basemap", true, new ConfigDescription("Optimize Basemap (only works in housing island)"));
-            disableFoliage = Config.Bind("Performance Improvements", "Disable Foliage", false, new ConfigDescription("Disable Foliage"));
-            disableMapSimulation = Config.Bind("Performance Improvements", "Disable Map simulation", false, new ConfigDescription("Disable Map simulation (may disable some effects)"));
+            optimizeBaseMap = Config.Bind("Performance Improvements", "Optimize basemap", true, new ConfigDescription("Optimize basemap (only works in housing island)"));
+            disableFoliage = Config.Bind("Performance Improvements", "Disable foliage", false, new ConfigDescription("Disable foliage"));
+            disableGreens = Config.Bind("Performance Improvements", "Disable greens", false, new ConfigDescription("Disable greens (trees, weeds, bushes)"));
+            disableSunShadows = Config.Bind("Performance Improvements", "Disable sun shadows", false, new ConfigDescription("Disable sun shadows"));
+            disableTitleScene = Config.Bind("Misc", "Disable title scene", true, new ConfigDescription("Disable title scene"));
 
             optimizeBaseMap.SettingChanged += delegate
             {
@@ -45,12 +58,29 @@ namespace AI_BetterFreeRoam
                 terrain.drawTreesAndFoliage = !disableFoliage.Value;
             };
             
-            disableMapSimulation.SettingChanged += delegate
+            disableGreens.SettingChanged += delegate
             {
-                if (mapSimulation == null || HSceneManager.isHScene)
+                if (terrain == null || greens == null)
                     return;
 
-                mapSimulation.SetActive(!disableMapSimulation.Value);
+                foreach (var t in greens.Where(g => g != null))
+                    t.SetActive(!disableGreens.Value);
+            };
+            
+            disableSunShadows.SettingChanged += delegate
+            {
+                if (sun == null || HSceneManager.isHScene)
+                    return;
+
+                sun.shadows = disableSunShadows.Value ? LightShadows.None : LightShadows.Soft;
+            };
+            
+            disableTitleScene.SettingChanged += delegate
+            {
+                if (titleCam == null)
+                    return;
+
+                titleCam.SetActive(!disableTitleScene.Value);
             };
 
             HarmonyWrapper.PatchAll(typeof(AI_BetterFreeRoam));
@@ -59,9 +89,11 @@ namespace AI_BetterFreeRoam
         [HarmonyPostfix, HarmonyPatch(typeof(Map), "InitSearchActorTargetsAll")]
         public static void Map_InitSearchActorTargetsAll_Patch()
         {
-            mapSimulation = GameObject.Find("CommonSpace/MapRoot/MapSimulation(Clone)/EnviroSkyGroup(Clone)");
-            if (mapSimulation == null)
+            sun = GameObject.Find("CommonSpace/MapRoot/MapSimulation(Clone)/EnviroSkyGroup(Clone)/Enviro Directional Light").GetComponent<Light>();
+            if (sun == null)
                 return;
+            
+            sun.shadows = disableSunShadows.Value ? LightShadows.None : LightShadows.Soft;
             
             var map = GameObject.Find("map00_Beach/map00_terrain_data/map00_terrain");
             if (map == null)
@@ -77,18 +109,36 @@ namespace AI_BetterFreeRoam
             if (terrain == null)
                 return;
 
+            terrain.drawTreesAndFoliage = !disableFoliage.Value;
+            
             if(inHousingIsland)
                 terrain.basemapDistance = optimizeBaseMap.Value ? 0 : 1000;
             
-            terrain.drawTreesAndFoliage = !disableFoliage.Value;
+            gameObjects = UnityEngine.Resources.FindObjectsOfTypeAll(typeof(GameObject)) as GameObject[];
+            if (gameObjects == null)
+                return;
             
-            mapSimulation.SetActive(!disableMapSimulation.Value);
+            greens = new List<GameObject>();
+            foreach (var t in gameObjects.Where(g => g != null))
+                if (t.name.Contains("fern") || t.name.Contains("grass") || t.name.Contains("tree"))
+                {
+                    greens.Add(t);
+                    t.SetActive(!disableGreens.Value);
+                }
         }
-        
-        [HarmonyPostfix, HarmonyPatch(typeof(HSceneManager), "EndHScene")]
-        public static void HSceneManager_EndHScene_Patch()
+
+        [HarmonyPostfix, HarmonyPatch(typeof(TitleScene), "Start")]
+        private static void TitleScene_Start_Patch(ref object __result)
         {
-            mapSimulation.SetActive(!disableMapSimulation.Value);
+            __result = new[] { __result, TitleScene_Start() }.GetEnumerator();
+            
+            IEnumerator TitleScene_Start()
+            {
+                titleCam = GameObject.Find("TitleScene/MainCamera");
+                titleCam.SetActive(!disableTitleScene.Value);
+                
+                yield break;
+            }
         }
     }
 }
