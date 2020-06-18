@@ -83,7 +83,7 @@ namespace AI_BetterFreeRoam
                 titleCam.SetActive(!disableTitleScene.Value);
             };
 
-            HarmonyWrapper.PatchAll(typeof(AI_BetterFreeRoam));
+            Harmony.CreateAndPatchAll(typeof(AI_BetterFreeRoam));
         }
         
         [HarmonyPostfix, HarmonyPatch(typeof(Map), "InitSearchActorTargetsAll")]
@@ -131,14 +131,14 @@ namespace AI_BetterFreeRoam
         private static void TitleScene_Start_Patch(ref object __result)
         {
             __result = new[] { __result, TitleScene_Start() }.GetEnumerator();
-            
-            IEnumerator TitleScene_Start()
-            {
-                titleCam = GameObject.Find("TitleScene/MainCamera");
-                titleCam.SetActive(!disableTitleScene.Value);
+        }
+        
+        private static IEnumerator TitleScene_Start()
+        {
+            titleCam = GameObject.Find("TitleScene/MainCamera");
+            titleCam.SetActive(!disableTitleScene.Value);
                 
-                yield break;
-            }
+            yield break;
         }
     }
 }
