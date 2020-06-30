@@ -19,7 +19,7 @@ namespace AI_BetterFreeRoam
     public class AI_BetterFreeRoam : BaseUnityPlugin
     {
         public const string VERSION = "1.0.0";
-
+        
         private static PlayerActor player;
         
         private static Light sun;
@@ -37,7 +37,7 @@ namespace AI_BetterFreeRoam
         
         private static ConfigEntry<KeyboardShortcut> runKey { get; set; }
         private static ConfigEntry<float> runSpeed { get; set; }
-        
+
         private void Awake()
         {
             (optimizeBaseMap = Config.Bind("Performance Improvements", "Optimize basemap", true, new ConfigDescription("Optimize basemap (only works in housing island)"))).SettingChanged += delegate
@@ -56,7 +56,7 @@ namespace AI_BetterFreeRoam
             };
             (disableGreens = Config.Bind("Performance Improvements", "Disable greens", false, new ConfigDescription("Disable greens (trees, weeds, bushes)"))).SettingChanged += delegate
             {
-                if (terrain == null || greens == null)
+                if (greens == null)
                     return;
 
                 foreach (var t in greens.Where(g => g != null))
@@ -77,16 +77,19 @@ namespace AI_BetterFreeRoam
                 titleCam.SetActive(!disableTitleScene.Value);
             };
 
-            runKey = Config.Bind("QoL", "Run key", new KeyboardShortcut(KeyCode.LeftAlt), new ConfigDescription("Key to enable running"));
-            runSpeed = Config.Bind("QoL", "Run speed", 2f, new ConfigDescription("Speed at which player can run"));
+            Events.Awake(Config);
+            
+            runKey = Config.Bind("QoL - Running", "Run key", new KeyboardShortcut(KeyCode.LeftAlt), new ConfigDescription("Key to enable running"));
+            runSpeed = Config.Bind("QoL - Running", "Run speed", 10f, new ConfigDescription("Speed at which player can run"));
             
             var harmony = new Harmony(nameof(AI_BetterFreeRoam));
             harmony.PatchAll(typeof(AI_BetterFreeRoam));
+            harmony.PatchAll(typeof(Events));
         }
 
         private void Update()
         {
-            if (player == null || !runKey.Value.IsPressed() || player.PlayerController.State is Follow)
+            if (player == null || !runKey.Value.IsPressed() || HSceneManager.isHScene || player.PlayerController.State is Follow)
                 return;
             
             var vec = new Vector3(player.StateInfo.move.x, 0f, player.StateInfo.move.z);
@@ -139,7 +142,7 @@ namespace AI_BetterFreeRoam
 
             player = __instance.Player;
         }
-
+        
         [HarmonyPostfix, HarmonyPatch(typeof(TitleScene), "Start")]
         private static void TitleScene_Start_Patch(ref object __result)
         {

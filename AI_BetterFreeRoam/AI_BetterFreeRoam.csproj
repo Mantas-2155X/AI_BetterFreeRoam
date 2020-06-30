@@ -40,6 +40,10 @@
           <HintPath>..\..\..\..\..\..\media\illusion\Ai-Syoujyo\AI-Syoujyo_Data\Managed\Assembly-CSharp.dll</HintPath>
             <Private>False</Private>
         </Reference>
+        <Reference Include="BehaviorDesigner.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\..\..\..\..\..\media\illusion\Ai-Syoujyo\AI-Syoujyo_Data\Managed\BehaviorDesigner.Runtime.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
         <Reference Include="BepInEx, Version=5.1.0.0, Culture=neutral, PublicKeyToken=null">
           <HintPath>..\..\..\..\..\..\media\illusion\Ai-Syoujyo\BepInEx\core\BepInEx.dll</HintPath>
             <Private>False</Private>
@@ -67,6 +71,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="AI_BetterFreeRoam.cs" />
+        <Compile Include="Events.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
